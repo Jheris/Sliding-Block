@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sliding Puzzle with BFS</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #1e1e2f;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .controls {
+      margin: 15px;
+    }
+
+    select, button {
+      padding: 8px 12px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button {
+      background: #4a90e2;
+      color: white;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #357abd;
+    }
+
+    .puzzle {
+      display: grid;
+      gap: 5px;
+      background: #333;
+      padding: 5px;
+      border-radius: 10px;
+    }
+
+    .tile {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #4a90e2;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .tile:hover {
+      background: #357abd;
+    }
+
+    .empty {
+      background: #1e1e2f;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sliding Puzzle</h1>
+
+  <div class="controls">
+    <label for="size">Grid Size:</label>
+    <select id="size">
+      <option value="3">3x3</option>
+      <option value="4">4x4</option>
+      <option value="5">5x5</option>
+    </select>
+    <button onclick="shuffle()">Shuffle</button>
+    <button onclick="reset()">Reset</button>
+    <button onclick="solve()">Solve</button>
+  </div>
+
+  <div class="puzzle" id="puzzle"></div>
+
+  <script>
+    let size = 3;
+    let tiles = [];
+    let original = [];
+    const puzzleContainer = document.getElementById("puzzle");
+
+    function init(n) {
+      size = n;
+      puzzleContainer.style.gridTemplateColumns = `repeat(${size}, 80px)`;
+      puzzleContainer.style.gridTemplateRows = `repeat(${size}, 80px)`;
+      tiles = [...Array(size * size).keys()].map(x => x + 1);
+      tiles[tiles.length - 1] = 0; // last empty
+      original = [...tiles];
+      render();
+    }
+
+    function render() {
+      puzzleContainer.innerHTML = "";
+      tiles.forEach((tile, i) => {
+        const div = document.createElement("div");
+        div.classList.add("tile");
+        if (tile === 0) {
+          div.classList.add("empty");
+        } else {
+          div.textContent = tile;
+          div.addEventListener("click", () => moveTile(i));
+        }
+        puzzleContainer.appendChild(div);
+      });
+    }
+
+    function moveTile(index) {
+      const emptyIndex = tiles.indexOf(0);
+      const x = index % size;
+      const y = Math.floor(index / size);
+      const ex = emptyIndex % size;
+      const ey = Math.floor(emptyIndex / size);
+
+      if ((x === ex && Math.abs(y - ey) === 1) ||
+          (y === ey && Math.abs(x - ex) === 1)) {
+        [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+        render();
+        checkWin();
+      }
+    }
+
+    function shuffle() {
+      for (let i = tiles.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+      }
+      render();
+    }
+
+    function reset() {
+      tiles = [...original];
+      render();
+    }
+
+    function solve() {
+      if (size !== 3) {
+        alert("Solve is only available for 3x3!");
+        return;
+      }
+
+      const start = tiles.join(",");
+      const goal = original.join(",");
+
+      let queue = [[start]];
+      let visited = new Set([start]);
+
+      while (queue.length > 0) {
+        let path = queue.shift();
+        let state = path[path.length - 1];
+
+        if (state === goal) {
+          animateSolution(path);
+          return;
+        }
+
+        let neighbors = getNeighbors(state);
+        for (let neighbor of neighbors) {
+          if (!visited.has(neighbor)) {
+            visited.add(neighbor);
+            queue.push([...path, neighbor]);
+          }
+        }
+      }
+    }
+
+    function getNeighbors(state) {
+      let arr = state.split(",").map(Number);
+      let neighbors = [];
+      let emptyIndex = arr.indexOf(0);
+      let x = emptyIndex % size;
+      let y = Math.floor(emptyIndex / size);
+
+      let moves = [
+        [x - 1, y], [x + 1, y], 
+        [x, y - 1], [x, y + 1]
+      ];
+
+      for (let [nx, ny] of moves) {
+        if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
+          let newArr = arr.slice();
+          let newIndex = ny * size + nx;
+          [newArr[emptyIndex], newArr[newIndex]] = [newArr[newIndex], newArr[emptyIndex]];
+          neighbors.push(newArr.join(","));
+        }
+      }
+
+      return neighbors;
+    }
+
+    function animateSolution(path) {
+      let i = 0;
+      let interval = setInterval(() => {
+        tiles = path[i].split(",").map(Number);
+        render();
+        i++;
+        if (i >= path.length) clearInterval(interval);
+      }, 500);
+    }
+
+    function checkWin() {
+      if (tiles.join() === original.join()) {
+        setTimeout(() => alert("🎉 You solved the puzzle!"), 100);
+      }
+    }
+
+    document.getElementById("size").addEventListener("change", (e) => {
+      init(parseInt(e.target.value));
+    });
+
+    init(3);
+  </script>
+</body>
+</html>
